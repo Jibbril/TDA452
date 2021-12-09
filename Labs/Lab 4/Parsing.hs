@@ -123,6 +123,7 @@ p +++ q  = P $ \s ->
 
 infixl 1 >*>
 
+--P (String -> Maybe (a,String))
 (>*>) :: Parser a -> (a -> Parser b) -> Parser b
 p >*> f  = P $ \s -> 
             case parse p s of 

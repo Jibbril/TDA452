@@ -1,4 +1,5 @@
 import Data.Maybe
+import Parsing
 
 data Expr = 
     Num Double
@@ -6,7 +7,7 @@ data Expr =
   | Sin Expr
   | Add Expr Expr
   | Mul Expr Expr
-  | Var String
+  | X
   deriving (Eq,Show)
 
 type Table = [(String,Double)]
@@ -23,8 +24,9 @@ type Table = [(String,Double)]
 -- | ----------------- Part 1A ----------------- |
 -- | ------------------------------------------- |
 x :: Expr
-x = Cos (Add (Mul (Num 3) (Num 2)) (Var "x")) -- What's the meaning of this?
-x2 = Cos (Mul (Add (Num 3) (Num 2)) (Var "y")) -- What's the meaning of this?
+x  = Cos (Add (Mul (Num 3) (Num 2)) X)
+x2 = Cos (Mul (Add (Num 3) (Num 2)) X)
+
 -- | Converts a Double to an Expr
 num :: Double -> Expr
 num n = Num n
@@ -48,8 +50,8 @@ cos e = Cos e
 -- | Calculate the number of operators and functions
 -- | in an Expr
 size :: Expr -> Int
+size X            = 0
 size (Num _)      = 0
-size (Var a)      = 0
 size (Cos e)      = 1 + size e
 size (Sin e)      = 1 + size e
 size (Add e1 e2)  = 1 + size e1 + size e2
@@ -58,29 +60,83 @@ size (Mul e1 e2)  = 1 + size e1 + size e2
 -- | ------------------------------------------- |
 -- | ----------------- Part 1B ----------------- |
 -- | ------------------------------------------- |
+
+-- | Takes an expression and returns a string a string representation of it.
 showExpr :: Expr -> String
-showExpr (Var x)      = x
+showExpr X            = "x"
 showExpr (Num n)      = show n
 showExpr (Sin e)      = "sin(" ++ showExpr e ++ ")"
 showExpr (Cos e)      = "cos(" ++ showExpr e ++ ")"
-showExpr (Add e1 e2)  = showExpr e1 ++ " + " ++ showExpr e2
-showExpr (Mul e1 e2)  = showFactor e1 ++ " * " ++ showFactor e2
+showExpr (Add e1 e2)  = showExpr e1 ++ "+" ++ showExpr e2
+showExpr (Mul e1 e2)  = showFactor e1 ++ "*" ++ showFactor e2
 
+-- | 
 showFactor :: Expr -> String
 showFactor (Add e1 e2) = "(" ++ showExpr (Add e1 e2) ++ ")" 
 showFactor e           = showExpr e
 
-eval :: Table -> Expr -> Double
-eval t e = eval' e
+
+-- | ------------------------------------------- |
+-- | ----------------- Part 1C ----------------- |
+-- | ------------------------------------------- |
+
+eval :: Expr -> Double -> Double
+eval e x = eval' e
   where
+    eval' (X)         = x 
     eval' (Num n)     = n
     eval' (Add e1 e2) = eval' e1 + eval' e2
     eval' (Mul e1 e2) = eval' e1 * eval' e2
-    -- eval' (Sin e1 e2) = 
-    -- eval' (Cos e1 e2) =
-    eval' (Var x)     = fromJust $ lookup x t -- Could also use look k t
+    eval' (Sin e) = Prelude.sin (eval' e) 
+    eval' (Cos e) = Prelude.cos (eval' e)
 
-    look k [] = error "No value for " ++ k
-    look k ((k',v):t)
-      | k == k'   = v
-      | otherwise = look k t
+
+-- | ------------------------------------------- |
+-- | ----------------- Part 1D ----------------- |
+-- | ------------------------------------------- |
+
+readExpr :: String -> Maybe Expr
+readExpr s = fst <$> parse expr (trim s)
+
+trim :: String -> String
+trim s = filter (/= ' ') s
+
+expr, term, factor :: Parser Expr
+expr = do 
+  t <- term
+  ts <- zeroOrMore (do char '+'; term)
+  return $ foldl Add t ts
+
+term = do
+  t <- factor
+  ts <- zeroOrMore (do char '*'; factor)
+  return $ foldl Mul t ts
+
+factor = Num <$> number
+  <|> do 
+    char '('
+    e <- expr
+    char ')'
+    return e
+  <|> do
+    char 's' -- char "sin(3)" -> ("s", "in(3)")
+    char 'i'
+    char 'n'
+    char '('
+    e <- expr
+    char ')'
+    return $ Sin e
+  <|> do
+    char 'c'
+    char 'o'
+    char 's'
+    char '('
+    e <- expr
+    char ')'
+    return $ Cos e
+  <|> do
+    char 'x'
+    return X
+
+number :: Parser Double
+number = read <$> oneOrMore digit
