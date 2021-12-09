@@ -24,6 +24,7 @@ type Table = [(String,Double)]
 -- | ------------------------------------------- |
 x :: Expr
 x = Cos (Add (Mul (Num 3) (Num 2)) (Var "x")) -- What's the meaning of this?
+x2 = Cos (Mul (Add (Num 3) (Num 2)) (Var "y")) -- What's the meaning of this?
 -- | Converts a Double to an Expr
 num :: Double -> Expr
 num n = Num n
@@ -54,6 +55,20 @@ size (Sin e)      = 1 + size e
 size (Add e1 e2)  = 1 + size e1 + size e2
 size (Mul e1 e2)  = 1 + size e1 + size e2
 
+-- | ------------------------------------------- |
+-- | ----------------- Part 1B ----------------- |
+-- | ------------------------------------------- |
+showExpr :: Expr -> String
+showExpr (Var x)      = x
+showExpr (Num n)      = show n
+showExpr (Sin e)      = "sin(" ++ showExpr e ++ ")"
+showExpr (Cos e)      = "cos(" ++ showExpr e ++ ")"
+showExpr (Add e1 e2)  = showExpr e1 ++ " + " ++ showExpr e2
+showExpr (Mul e1 e2)  = showFactor e1 ++ " * " ++ showFactor e2
+
+showFactor :: Expr -> String
+showFactor (Add e1 e2) = "(" ++ showExpr (Add e1 e2) ++ ")" 
+showFactor e           = showExpr e
 
 eval :: Table -> Expr -> Double
 eval t e = eval' e
