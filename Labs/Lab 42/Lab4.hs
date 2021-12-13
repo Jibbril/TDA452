@@ -14,20 +14,15 @@ data Expr =
 
 type Table = [(String,Double)]
 
--- Approximate plan:
--- table = [("x", 5),("y", 7)]
--- calculate (2*x + 3*y) table
--- parse   -> Add (Mul 2 x) (Mul 3 y)
--- lookup  -> Add (Mul 2 5) (Mul 3 7)
--- eval    -> Add 10 21 
--- show eval -> 31
+x,x2,x3,x4 :: Expr
+x  = Cos (Add (Mul (Num 3) (Num 2)) X)
+x2 = Cos (Mul (Add (Num 3) (Num 2)) X)
+x3 = Sin (Add (Sin (Num 4.0)) (Mul (Add (Num 3.0) (Num 0.0)) (Num 2.0)))
+x4 = Mul (Add (Add (Mul (Add (Num 0.0) (Num 1.0)) X) (Sin (Cos (Num (-1.0))))) X) (Sin (Cos (Mul (Add (Num 0.0) (Num 0.0)) (Cos (Num 4.0)))))
 
 -- | ------------------------------------------- |
 -- | ----------------- Part 1A ----------------- |
 -- | ------------------------------------------- |
-x,x2 :: Expr
-x  = Cos (Add (Mul (Num 3) (Num 2)) X)
-x2 = Cos (Mul (Add (Num 3) (Num 2)) X)
 
 -- | Converts a Double to an Expr
 num :: Double -> Expr
@@ -65,12 +60,12 @@ size (Mul e1 e2)  = 1 + size e1 + size e2
 
 -- | Takes an expression and returns a string a string representation of it.
 showExpr :: Expr -> String
-showExpr X            = "x"
-showExpr (Num n)      = show n
-showExpr (Sin e)      = "sin(" ++ showExpr e ++ ")"
-showExpr (Cos e)      = "cos(" ++ showExpr e ++ ")"
-showExpr (Add e1 e2)  = showExpr e1 ++ "+" ++ showExpr e2
-showExpr (Mul e1 e2)  = showFactor e1 ++ "*" ++ showFactor e2
+showExpr X             = "x"
+showExpr (Num n)       = show n
+showExpr (Sin e)       = "sin(" ++ showExpr e ++ ")"
+showExpr (Cos e)       = "cos(" ++ showExpr e ++ ")"
+showExpr (Add e1 e2)   = showExpr e1 ++ "+" ++ showExpr e2
+showExpr (Mul e1 e2)   = showFactor e1 ++ "*" ++ showFactor e2
 
 -- | 
 showFactor :: Expr -> String
@@ -85,7 +80,7 @@ showFactor e           = showExpr e
 eval :: Expr -> Double -> Double
 eval e x = eval' e
   where
-    eval' (X)         = x 
+    eval' X         = x 
     eval' (Num n)     = n
     eval' (Add e1 e2) = eval' e1 + eval' e2
     eval' (Mul e1 e2) = eval' e1 * eval' e2
@@ -139,12 +134,12 @@ factor = Num <$> number
     char 'x'
     return X
 
-
+-- | TODO: Fix this using reads in stead of digitDotOrMinus
 number :: Parser Double
-number = read <$> oneOrMore digitOrDot
+number = read <$> oneOrMore digitDotOrMinus
 
-digitOrDot :: Parser Char
-digitOrDot = sat isDigit <|> sat (=='.')
+digitDotOrMinus :: Parser Char
+digitDotOrMinus = sat isDigit <|> char '.' <|> char '-'
 
 
 -- | Runs assoc until further iterations no longer changes the input
@@ -247,15 +242,49 @@ simplify' (Add e (Num 0))          = simplify' e
 simplify' (Add (Num n1) (Num n2))  = Num (n1+n2)
 simplify' (Add e1 e2)              = Add (simplify' e1) (simplify' e2)
 
-x3 :: Expr
-x3 = Sin (Add (Sin (Num 4.0)) (Mul (Add (Num 3.0) (Num 0.0)) (Num 2.0)))
+-- | Checks that the value of the expression and the simplified expression are equal.
+prop_SameValue :: Expr -> Double -> Bool 
+prop_SameValue e d = eval e d == eval (simplify e) d
 
-x4 :: Expr
-x4 = Mul (Add (Add (Mul (Add (Num 0.0) (Num 1.0)) X) (Sin (Cos (Num 1.0)))) X) (Sin (Cos (Mul (Add (Num 0.0) (Num 0.0)) (Cos (Num 4.0)))))
+-- | Checks that a simplified expression is of the simplest form
+prop_SimplestForm :: Expr -> Bool
+prop_SimplestForm e = formatChecker $ simplify e
+
+-- | Checks that an expression is of an acceptable minimal form
+formatChecker :: Expr -> Bool
+formatChecker X                        = True
+formatChecker (Num n)                  = True
+formatChecker (Sin (Num 0))            = False
+formatChecker (Sin e)                  = formatChecker e
+formatChecker (Cos (Num 0))            = False
+formatChecker (Cos e)                  = formatChecker e
+
+formatChecker (Mul (Num 0) _)          = False
+formatChecker (Mul _ (Num 0))          = False
+formatChecker (Mul (Num 1) e)          = False
+formatChecker (Mul e (Num 1))          = False
+formatChecker (Mul (Num n1) (Num n2))  = False
+formatChecker (Mul e1 e2)              = formatChecker e1 && formatChecker e2
+
+formatChecker (Add (Num 0) e)          = formatChecker e
+formatChecker (Add e (Num 0))          = formatChecker e
+formatChecker (Add (Num n1) (Num n2))  = False
+formatChecker (Add e1 e2)              = formatChecker e1 && formatChecker e2
+
 
 -- | ------------------------------------------- |
--- | ----------------- Part 1F ----------------- |
+-- | ----------------- Part 1G ----------------- |
 -- | ------------------------------------------- |
 
+-- | Differentiates an expression and returns the simplified form.
 differentiate :: Expr -> Expr
-differentiate e = undefined
+differentiate = simplify . differentiate'
+
+-- | Differentiate expressions
+differentiate' :: Expr -> Expr
+differentiate' (Add e1 e2) = Mul (differentiate' e1) (differentiate' e2)
+differentiate' (Mul e1 e2) = Add (Mul (differentiate' e1) e2) (Mul e1 (differentiate' e2))
+differentiate' X           = Num 1
+differentiate' (Sin e)     = Mul (differentiate' e) (Cos e)
+differentiate' (Cos e)     = Mul (differentiate' e) (Mul (Num (-1)) (Sin e))
+differentiate' _           = Num 0 
