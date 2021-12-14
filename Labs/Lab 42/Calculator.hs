@@ -51,11 +51,14 @@ readAndDraw input canvas =
      path "blue" [(10,10),(canWidth-10,canHeight/2)] canvas
 
 
+
+
 -- | ------------------------------------------- |
 -- | ----------------- Part 2H ----------------- |
 -- | ------------------------------------------- |
+
 points :: Expr -> Double -> (Int,Int) -> [Point]
-points expr scale (width, height) = [ (x,realToPix (eval expr (pixToReal x))) | x <- [0..dWidth]]
+points expr scale (width, height) = [ (x,realToPix $ eval expr $ pixToReal x) | x <- [0..dWidth]]
   where
     dWidth = fromIntegral width
     dHeight = fromIntegral height
@@ -66,15 +69,11 @@ points expr scale (width, height) = [ (x,realToPix (eval expr (pixToReal x))) | 
 
     -- converts a real y-coordinate to a pixel y-coordinate
     realToPix :: Double -> Double  
-    realToPix y = -y / (scale + dHeight / 2)
+    realToPix y = -y / scale + dHeight / 2
 
+-- | ------------------------------------------- |
+-- | ----------------- Part 2I ----------------- |
+-- | ------------------------------------------- |
 
--- scale = 1.0
--- dWidth = fromIntegral 300
--- dHeight = fromIntegral 300
--- -- converts a pixel x-coordinate to a real x-coordinate
--- pixToReal :: Double -> Double  
--- pixToReal x = scale * (x - dWidth / 2)
--- -- converts a real y-coordinate to a pixel y-coordinate
--- realToPix :: Double -> Double  
--- realToPix y = -y / (scale + dHeight / 2)
+-- readAndDraw :: Element -> Canvas -> UI ()
+-- readAndDraw = undefined
