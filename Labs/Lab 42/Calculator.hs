@@ -6,6 +6,7 @@ import ThreepennyPages
 import Graphics.UI.Threepenny.Core as UI
 import qualified Graphics.UI.Threepenny as UI
 import Expr
+import Data.Maybe(fromJust)
 
 canWidth,canHeight :: Num a => a
 canWidth  = 300
@@ -37,22 +38,6 @@ setup window =
      on UI.click     draw  $ \ _ -> readAndDraw input canvas
      on valueChange' input $ \ _ -> readAndDraw input canvas
 
-
-readAndDraw :: Element -> Canvas -> UI ()
-readAndDraw input canvas =
-  do -- Get the current formula (a String) from the input element
-     formula <- get value input
-     -- Clear the canvas
-     clearCanvas canvas
-     -- The following code draws the formula text in the canvas and a blue line.
-     -- It should be replaced with code that draws the graph of the function.
-     set UI.fillStyle (UI.solidColor (UI.RGB 0 0 0)) (pure canvas)
-     UI.fillText formula (10,canHeight/2) canvas
-     path "blue" [(10,10),(canWidth-10,canHeight/2)] canvas
-
-
-
-
 -- | ------------------------------------------- |
 -- | ----------------- Part 2H ----------------- |
 -- | ------------------------------------------- |
@@ -71,9 +56,24 @@ points expr scale (width, height) = [ (x,realToPix $ eval expr $ pixToReal x) | 
     realToPix :: Double -> Double  
     realToPix y = -y / scale + dHeight / 2
 
+
 -- | ------------------------------------------- |
 -- | ----------------- Part 2I ----------------- |
 -- | ------------------------------------------- |
 
--- readAndDraw :: Element -> Canvas -> UI ()
--- readAndDraw = undefined
+readAndDraw :: Element -> Canvas -> UI ()
+readAndDraw input canvas =
+  do -- Get the current formula (a String) from the input element
+     formula <- get value input
+     -- Clear the canvas
+     clearCanvas canvas
+     
+     -- The following code draws the formula text in the canvas and a blue line.
+     -- It should be replaced with code that draws the graph of the function.
+
+     set UI.fillStyle (UI.solidColor (UI.RGB 0 0 0)) (pure canvas)
+     UI.fillText formula (10,canHeight/2) canvas
+     case readExpr formula of
+       Nothing -> do clearCanvas canvas
+                     UI.fillText "Invalid expression!" (10,canHeight/2) canvas
+       exp     -> path "blue" (points (fromJust exp) 1 (canWidth,canHeight)) canvas
