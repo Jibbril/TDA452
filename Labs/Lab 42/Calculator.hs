@@ -22,12 +22,14 @@ setup window =
      fx      <- mkHTML "<i>f</i>(<i>x</i>)="  -- The text "f(x)="
      input   <- mkInput 20 "x"                -- The formula input
      draw    <- mkButton "Draw graph"         -- The draw button
+     diff    <- mkButton "Differentiate"      -- The differentiate button
+     scale   <- mkSlider (0, 99) 4            -- The scale slider
        -- The markup "<i>...</i>" means that the text inside should be rendered
        -- in italics.
 
      -- Add the user interface elements to the page, creating a specific layout
      formula <- row [pure fx,pure input]
-     getBody window #+ [column [pure canvas,pure formula,pure draw]]
+     getBody window #+ [column [pure canvas,pure formula,pure scale,pure diff,pure draw]]
 
      -- Styling
      getBody window # set style [("backgroundColor","lightblue"),
@@ -35,8 +37,10 @@ setup window =
      pure input # set style [("fontSize","14pt")]
 
      -- Interaction (install event handlers)
+     -- on UI.click     diff  $ \ _ -> 
      on UI.click     draw  $ \ _ -> readAndDraw input canvas
      on valueChange' input $ \ _ -> readAndDraw input canvas
+     on valueChange' scale $ \ s -> update input canvas (read s :: Double)
 
 -- | ------------------------------------------- |
 -- | ----------------- Part 2H ----------------- |
@@ -58,22 +62,27 @@ points expr scale (width, height) = [ (x,realToPix $ eval expr $ pixToReal x) | 
 
 
 -- | ------------------------------------------- |
--- | ----------------- Part 2I ----------------- |
+-- | ------------- Part 2I and 2J -------------- |
 -- | ------------------------------------------- |
 
-readAndDraw :: Element -> Canvas -> UI ()
-readAndDraw input canvas =
-  do -- Get the current formula (a String) from the input element
-     formula <- get value input
-     -- Clear the canvas
-     clearCanvas canvas
-     
-     -- The following code draws the formula text in the canvas and a blue line.
-     -- It should be replaced with code that draws the graph of the function.
+update :: Element -> Canvas -> Double -> UI ()
+update input canvas scale = do
+  formula <- get value input
+  -- set value "3" UI.input 
 
-     set UI.fillStyle (UI.solidColor (UI.RGB 0 0 0)) (pure canvas)
-     UI.fillText formula (10,canHeight/2) canvas
-     case readExpr formula of
-       Nothing -> do clearCanvas canvas
-                     UI.fillText "Invalid expression!" (10,canHeight/2) canvas
-       exp     -> path "blue" (points (fromJust exp) 1 (canWidth,canHeight)) canvas
+  -- Clear the canvas
+  clearCanvas canvas
+
+  liftIO $ print scale
+  
+  -- The following code draws the formula text in the canvas and a blue line.
+  -- It should be replaced with code that draws the graph of the function.
+  set UI.fillStyle (UI.solidColor (UI.RGB 0 0 0)) (pure canvas)
+  UI.fillText formula (10,canHeight/2) canvas
+  case readExpr formula of
+    Nothing -> do clearCanvas canvas
+                  UI.fillText "Invalid expression!" (10,canHeight/2) canvas
+    exp     -> path "blue" (points (fromJust exp) ((100-scale) / 100) (canWidth,canHeight)) canvas
+
+readAndDraw :: Element -> Canvas -> UI ()
+readAndDraw input canvas = update input canvas 0.96
