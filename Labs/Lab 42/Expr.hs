@@ -1,3 +1,5 @@
+module Expr where
+
 import Data.Maybe
 import Parsing
 import Test.QuickCheck
@@ -288,3 +290,6 @@ differentiate' X           = Num 1
 differentiate' (Sin e)     = Mul (differentiate' e) (Cos e)
 differentiate' (Cos e)     = Mul (differentiate' e) (Mul (Num (-1)) (Sin e))
 differentiate' _           = Num 0 
+
+
+
