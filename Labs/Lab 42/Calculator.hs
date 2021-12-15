@@ -7,6 +7,7 @@ import Graphics.UI.Threepenny.Core as UI
 import qualified Graphics.UI.Threepenny as UI
 import Expr
 import Data.Maybe(fromJust)
+import Graphics.UI.Threepenny (fillText)
 
 canWidth,canHeight :: Num a => a
 canWidth  = 300
@@ -37,7 +38,14 @@ setup window =
      pure input # set style [("fontSize","14pt")]
 
      -- Interaction (install event handlers)
-     -- on UI.click     diff  $ \ _ -> 
+     on UI.click     diff  $ \ _ -> do 
+                                      expr <- readExpr <$> get value input
+                                      case expr of
+                                        Nothing -> pure input # set value "Invalid"
+                                        ok      -> pure input # set value (showExpr . differentiate $ fromJust ok)
+                                        
+                                      readAndDraw input canvas
+                                      
      on UI.click     draw  $ \ _ -> readAndDraw input canvas
      on valueChange' input $ \ _ -> readAndDraw input canvas
      on valueChange' scale $ \ s -> update input canvas (read s :: Double)
@@ -45,7 +53,6 @@ setup window =
 -- | ------------------------------------------- |
 -- | ----------------- Part 2H ----------------- |
 -- | ------------------------------------------- |
-
 points :: Expr -> Double -> (Int,Int) -> [Point]
 points expr scale (width, height) = [ (x,realToPix $ eval expr $ pixToReal x) | x <- [0..dWidth]]
   where
@@ -64,25 +71,29 @@ points expr scale (width, height) = [ (x,realToPix $ eval expr $ pixToReal x) | 
 -- | ------------------------------------------- |
 -- | ------------- Part 2I and 2J -------------- |
 -- | ------------------------------------------- |
-
 update :: Element -> Canvas -> Double -> UI ()
 update input canvas scale = do
   formula <- get value input
-  -- set value "3" UI.input 
 
   -- Clear the canvas
   clearCanvas canvas
 
-  liftIO $ print scale
-  
   -- The following code draws the formula text in the canvas and a blue line.
   -- It should be replaced with code that draws the graph of the function.
   set UI.fillStyle (UI.solidColor (UI.RGB 0 0 0)) (pure canvas)
-  UI.fillText formula (10,canHeight/2) canvas
   case readExpr formula of
     Nothing -> do clearCanvas canvas
                   UI.fillText "Invalid expression!" (10,canHeight/2) canvas
-    exp     -> path "blue" (points (fromJust exp) ((100-scale) / 100) (canWidth,canHeight)) canvas
+    exp     -> do 
+                 let ex = fromJust exp
+                 UI.fillText (showExpr ex) (10,canHeight/2) canvas
+                --  liftIO $ print ex
+                --  let w = simplify ex
+                --  liftIO $ print w
+                -- liftIO $ print $ showExpr $ simplify ex
+                 path "blue" (points ex ((100-scale) / 100) (canWidth,canHeight)) canvas
+                 pure input # set value (showExpr $ simplify ex)
+                 return ()
 
 readAndDraw :: Element -> Canvas -> UI ()
 readAndDraw input canvas = update input canvas 0.96

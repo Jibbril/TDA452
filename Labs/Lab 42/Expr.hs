@@ -14,8 +14,7 @@ data Expr =
   | X
   deriving (Eq,Show)
 
-type Table = [(String,Double)]
-
+-- | Example expressions used while testing
 x,x2,x3,x4 :: Expr
 x  = Cos (Add (Mul (Num 3) (Num 2)) X)
 x2 = Cos (Mul (Add (Num 3) (Num 2)) X)
@@ -46,8 +45,7 @@ sin = Sin
 cos :: Expr -> Expr
 cos = Cos
 
--- | Calculate the number of operators and functions
--- | in an Expr
+-- | Calculate the number of operators and functions in an Expr
 size :: Expr -> Int
 size X            = 0
 size (Num _)      = 0
@@ -60,7 +58,7 @@ size (Mul e1 e2)  = 1 + size e1 + size e2
 -- | ----------------- Part 1B ----------------- |
 -- | ------------------------------------------- |
 
--- | Takes an expression and returns a string a string representation of it.
+-- | Takes an expression and returns a string representation of it.
 showExpr :: Expr -> String
 showExpr X             = "x"
 showExpr (Num n)       = show n
@@ -69,7 +67,7 @@ showExpr (Cos e)       = "cos(" ++ showExpr e ++ ")"
 showExpr (Add e1 e2)   = showExpr e1 ++ "+" ++ showExpr e2
 showExpr (Mul e1 e2)   = showFactor e1 ++ "*" ++ showFactor e2
 
--- | 
+-- | Enable displaying of brackets for proper precendence of operations
 showFactor :: Expr -> String
 showFactor (Add e1 e2) = "(" ++ showExpr (Add e1 e2) ++ ")" 
 showFactor e           = showExpr e
@@ -79,6 +77,7 @@ showFactor e           = showExpr e
 -- | ----------------- Part 1C ----------------- |
 -- | ------------------------------------------- |
 
+-- | Evaluate an expression to a Double value
 eval :: Expr -> Double -> Double
 eval e x = eval' e
   where
@@ -93,12 +92,16 @@ eval e x = eval' e
 -- | ------------------------------------------- |
 -- | ----------------- Part 1D ----------------- |
 -- | ------------------------------------------- |
+-- | Read an Expr from a provided String 
 readExpr :: String -> Maybe Expr
 readExpr s = fst <$> parse expr (trim s)
 
+-- | Remove all spaces in a string
 trim :: String -> String
 trim = filter ( not . isSpace )
 
+-- | Parse functions for different levels of 
+-- | expression complexity
 expr, term, factor :: Parser Expr
 expr = do 
   t <- term
@@ -136,22 +139,14 @@ factor = Num <$> number
     char 'x'
     return X
 
--- | TODO: Fix this using reads in stead of digitDotOrMinus
+-- | Parser for numbers in Strings
 number :: Parser Double
 number = read <$> oneOrMore digitDotOrMinus
 
+-- | Parser for digits dots or minus signs
 digitDotOrMinus :: Parser Char
 digitDotOrMinus = sat isDigit <|> char '.' <|> char '-'
 
-
--- | Runs assoc until further iterations no longer changes the input
--- | Note: Needed because there can exist expressions where one pass
--- | of assoc is not enough. See example below.
--- ((a + (b + c)) + (d + e)) --assoc--> (a + ((b + c) + (d + e))) --assoc--> (a + (b + (c + (d + e)))) --assoc--> (a + (b + (c + (d + e))))
-assocs :: Expr -> Expr -> Expr
-assocs e e'
-  | e' == e   = e
-  | otherwise = assocs e' (assoc e')
 
 -- | Rewrites an expression to the associative form with all parenthesis to the right.
 assoc :: Expr -> Expr
@@ -164,6 +159,14 @@ assoc (Sin e)               = Sin (assoc e)
 assoc (Cos e)               = Cos (assoc e)
 assoc X                     = X
 
+-- | Runs assoc until further iterations no longer changes the input
+-- | Note: Needed because there can exist expressions where one pass
+-- | of assoc is not enough. See example below.
+-- ((a + (b + c)) + (d + e)) --assoc--> (a + ((b + c) + (d + e))) --assoc--> (a + (b + (c + (d + e)))) --assoc--> (a + (b + (c + (d + e))))
+assocs :: Expr -> Expr -> Expr
+assocs e e'
+  | e' == e   = e
+  | otherwise = assocs e' (assoc e')
 
 -- | ------------------------------------------- |
 -- | ----------------- Part 1E ----------------- |
@@ -171,45 +174,39 @@ assoc X                     = X
 
 -- | Checks that running readExpr and showExpr consecutively on an expression doesn't change the expression.
 prop_ShowReadExpr :: Expr -> Bool
-prop_ShowReadExpr e = case (readExpr $ showExpr e) of
+prop_ShowReadExpr e = case readExpr $ showExpr e of
       Nothing -> False
       e'      -> assocs (fromJust e') (assoc $ fromJust e') == assocs e (assoc e)
 
+-- | Generator for arbitrary Expr
 arbExpr :: Int -> Gen Expr
-arbExpr = rExpr 
-
-
-rExpr :: Int -> Gen Expr
-rExpr s = frequency [(1,rNum), (s,rBin s), (s,rTrig s), (s, rX)]
+arbExpr s = frequency [(1,rNum), (s,rBin s), (s,rTrig s), (s, rX)]
   -- s protects from building infinite trees by decreasing 
   -- the chance of picking a binary expression
   where 
-    range = 4
-
     rNum = do
-      n <- elements [0..range]
+      n <- elements [0..99]
       return (Num n)
-    -- rNum = elements $ map Num [-range..range] --- equivalent
 
     rX = do
       return X
 
     rTrig s = do
-      let s' = (s `div` 2)
+      let s' = s `div` 2
       op <- elements [Sin, Cos]
-      e <- rExpr s'
+      e <- arbExpr s'
       return $ op e
 
     rBin s = do
-      let s' = (s `div` 2)
+      let s' = s `div` 2
       op <- elements [Mul,Add]
-      e1 <- rExpr s'
-      e2 <- rExpr s'
+      e1 <- arbExpr s'
+      e2 <- arbExpr s'
       return $ op e1 e2
 
 -- Enable in QuickCheck
 instance Arbitrary Expr where
-  arbitrary = sized rExpr
+  arbitrary = sized arbExpr
 
 -- | ------------------------------------------- |
 -- | ----------------- Part 1F ----------------- |
@@ -239,10 +236,21 @@ simplify' (Mul e (Num 1))          = simplify' e
 simplify' (Mul (Num n1) (Num n2))  = Num (n1*n2)
 simplify' (Mul e1 e2)              = Mul (simplify' e1) (simplify' e2)
 
-simplify' (Add (Num 0) e)          = simplify' e
-simplify' (Add e (Num 0))          = simplify' e
-simplify' (Add (Num n1) (Num n2))  = Num (n1+n2)
-simplify' (Add e1 e2)              = Add (simplify' e1) (simplify' e2)
+simplify' (Add (Num 0) e)                 = simplify' e
+simplify' (Add e (Num 0))                 = simplify' e
+
+simplify' (Add (Num n1) (Num n2))         = Num (n1+n2)
+simplify' (Add e1 e2)                     = Add (simplify' e1) (simplify' e2)
+
+-- | Additional simplifications that make some expressions nicer
+-- | and allows further simplification
+simplify' (Add (Add X (Num n1)) (Num n2)) = Add X (Num (n1+n2))  -- (X + n1) + n2 = X + (n1 + n2)
+simplify' (Add (Add (Num n1) X) (Num n2)) = Add X (Num (n1+n2))  -- (n1 + X) + n2 = X + (n1 + n2)
+simplify' (Add X (Add (Num n) X))         = Add (Num n) (Add X X) -- X + (n + X) = n + (X + X)
+simplify' (Add X (Add X (Num n)))         = Add (Num n) (Add X X) -- X + (X + n) = n + (X + X)
+simplify' (Add (Add (Num n) X) X)         = Add (Num n) (Add X X) -- (n + X) + X = n + (X + X)
+simplify' (Add (Add X (Num n)) X)         = Add (Num n) (Add X X) -- (X + n) + X = n + (X + X)
+
 
 -- | Checks that the value of the expression and the simplified expression are equal.
 prop_SameValue :: Expr -> Double -> Bool 
@@ -284,12 +292,9 @@ differentiate = simplify . differentiate'
 
 -- | Differentiate expressions
 differentiate' :: Expr -> Expr
-differentiate' (Add e1 e2) = Mul (differentiate' e1) (differentiate' e2)
+differentiate' (Add e1 e2) = Add (differentiate' e1) (differentiate' e2)
 differentiate' (Mul e1 e2) = Add (Mul (differentiate' e1) e2) (Mul e1 (differentiate' e2))
 differentiate' X           = Num 1
 differentiate' (Sin e)     = Mul (differentiate' e) (Cos e)
 differentiate' (Cos e)     = Mul (differentiate' e) (Mul (Num (-1)) (Sin e))
 differentiate' _           = Num 0 
-
-
-
