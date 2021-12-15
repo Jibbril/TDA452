@@ -1,226 +1,186 @@
-{- Lab 2
-   Date: 21-11-09
-   Authors: Jibbril Ndaw Berbres and Valdemar Stenhammar
-   Lab group: 32
- -}
+{- 
+** Jibbril Ndaw Berbres
+** Valdemar Stenhammar
+** Group 32
+-}
 
 module BlackJack where
 import Cards
 import RunGame
 import Test.QuickCheck
+import Data.Text.Internal
 import System.Random
 
--- | Dummy data for testing
-hand2 = Add (Card Ace Hearts) (Add (Card Ace Spades) Empty)
-testCard = Card Jack Clubs
-h1 = hand2
-h2 = Add (Card Queen Diamonds) h1
-h3 = Add (Card Ace Hearts) h2
-h4 = Add (Card (Numeric 7) Clubs) h3
-h5 = Add (Card (Numeric 5) Clubs) h4
-t1 = Add (Card (Numeric 2) Spades) (Add (Card (Numeric 1) Spades) Empty)
-t2 = Add (Card (Numeric 4) Spades) (Add (Card (Numeric 3) Spades) Empty)
-t3 = Add (Card (Numeric 6) Spades) (Add (Card (Numeric 5) Spades) Empty)
+-- | Assignment A0: sizeSteps shows how "size hand2" is evaluated.
+hand2 = (Add (Card (Numeric 2) Hearts) (Add (Card Jack Spades) Empty))
 
--- =================== A0 ===================
 sizeSteps :: [Integer]
-sizeSteps = [ 
-    size hand2, 
-    size (Add (Card (Numeric 2) Hearts) (Add (Card Jack Spades) Empty)),
-    1 + size (Add (Card Jack Spades) Empty),
-    1 + (1 + size Empty),
-    1 + (1 + 0),
-    1 + 1,
-    2
-  ]
+sizeSteps = [size hand2
+            , size hand2
+            , size (Add (Card (Numeric 2) Hearts) (Add (Card Jack Spades) Empty))
+            , 1 + size (Add (Card Jack Spades) Empty)
+            , 1 + 1 + size Empty
+            , 2 + 0
+            , 2]
 
--- =================== A1 ===================
--- | Shows a Hand of Cards, utility function to get display
--- | whitelines correctly when playing the game
+
+
+-- | Assignment A1: Two methods that turns the Cards in a Hand to String.
+
+-- | Displays a hand of cards.
 display :: Hand -> String
-display Empty     = ""
-display h = "\n" ++ showHand h 
+display Empty            = ". \n \n"
+display (Add card Empty) = displayCard card ++ display Empty
+display (Add card hand)  = displayCard card ++ ", \n" ++ display hand
 
--- | Shows a Hand of Cards
-showHand :: Hand -> String
-showHand Empty     = ""
-showHand (Add c h) = showCard c ++ "\n" ++ showHand h
-
--- | Shows a Card
-showCard :: Card -> String
-showCard (Card (Numeric n) s)  = show n ++ " of " ++ show s
-showCard c                     = show (rank c) ++ " of " ++ show (suit c) 
+-- | Displays a card.
+displayCard :: Card -> String
+displayCard (Card (Numeric r) s) = show r ++ " of " ++ show s
+displayCard (Card r s)           = show r ++ " of " ++ show s
 
 
--- =================== A2 ===================
--- value :: Hand -> Integer
+-- | Assignment A2:
 
--- | Calculates the value of a Hand
+-- | Calculates the final value of a Hand.
 value :: Hand -> Integer
-value Empty   = 0
-value h 
-  | val > 21  = initialValue h 1
-  | otherwise = val
-  where 
-    val = initialValue h 11
+value Empty = 0
+value hand | val > 21  = val - numberOfAces hand * 10
+           | otherwise = val
+        where val = initialValue hand
 
-    initialValue :: Hand -> Integer -> Integer
-    initialValue Empty _ = 0
-    initialValue (Add c h) a = valFromRank (rank c) a + initialValue h a
+-- | Calculates total number of aces in a Hand.
+numberOfAces :: Hand -> Integer
+numberOfAces Empty = 0
+numberOfAces (Add card hand) | rank card == Ace = 1 + numberOfAces hand
+                             | otherwise          =     numberOfAces hand
 
-    valFromRank :: Rank -> Integer -> Integer
-    valFromRank r a =
-      case r of
-        Ace         -> a
-        (Numeric n) -> n
-        _           -> 10
+-- | Calculates value of Hand, disregarding number of aces.
+initialValue :: Hand -> Integer
+initialValue Empty           = 0
+initialValue (Add card hand) = valueRank (rank card) + initialValue hand
+        where 
+           valueRank (Numeric r)               = r
+           valueRank rank        | rank == Ace = 11
+                                 | otherwise   = 10
 
 
--- =================== A3 ===================
--- | Checks to see whether a player is bust
+-- | Assignment A3:
+
+-- | Checks if a Hand is over the 21-limit.
 gameOver :: Hand -> Bool
-gameOver Empty  = False
-gameOver h      = value h > 21
+gameOver hand | value hand > 21 = True
+              | otherwise       = False
 
 
--- =================== A4 ===================
--- | Checks to see who won the game
--- | First entry is the player, second is the bank
+-- | Assignment A4:
+
+-- | Checks if Guest or Bank won. Guest is first argument, Bank second.
 winner :: Hand -> Hand -> Player
 winner h1 h2 
-  | vH1 > vH2 && vH1 <= 21  = Guest
-  | vH1 <= 21 && vH2 > 21   = Guest
-  | otherwise               = Bank
-    where 
-      vH1 = value h1
-      vH2 = value h2
+  | (bank >= guest && bank <= 21) || guest > 21 = Bank
+  | otherwise                                 = Guest
+     where guest = value h1
+           bank  = value h2
 
--- ====================================================================
--- ============================== LAB 2B ==============================
--- ====================================================================
 
--- =================== B1 ===================
--- | Puts one Hand on top of another
--- | The second Hand is put on top of the first
+-- | Assignment B1:
+
+-- Combines two hands by adding the second one on top of the first.
 (<+) :: Hand -> Hand -> Hand
-(<+) h1 Empty = h1
-(<+) h1 (Add c h) = Add c (h1 <+ h)
-
--- | Tests the associativity of the <+ operator
-prop_onTopOf_assoc :: Hand -> Hand -> Hand -> Bool
-prop_onTopOf_assoc p1 p2 p3 = p1<+(p2<+p3) == (p1<+p2)<+p3
-
--- | Tests size consistency of the <+ operator
-prop_size_onTopOf :: Hand -> Hand -> Bool
-prop_size_onTopOf h1 h2 = size (h1 <+ h2) == size h1 + size h2
+Empty       <+ hand = hand
+(Add c1 h1) <+ hand = Add c1 (h1 <+ hand)
 
 
--- =================== B2 ===================
--- | Generate a Hand consisting of a full deck of cards
+-- | Assignment B2:
+
+-- Creates and returns a full standard deck.
 fullDeck :: Hand
-fullDeck = createHand deckList Empty
-  where
-    -- | Generate all Ranks
-    ranks :: [Rank]
-    ranks = [Numeric n | n <- [2..10]] ++ [Jack, Queen, King, Ace]
+fullDeck = fullSuit Hearts <+ fullSuit Spades <+ fullSuit Diamonds <+ fullSuit Clubs
+        where 
+        ranks = Ace:King:Queen:Jack:[ Numeric n | n <- [10,9..2] ]
 
-    -- | All Ranks
-    suits :: [Suit]
-    suits = [Hearts, Spades, Diamonds, Clubs]
+        fullSuit :: Suit -> Hand
+        fullSuit suit = allRanks ranks suit
 
-    -- | Generate all combinations (full deck) in a list
-    deckList :: [Card]
-    deckList = [Card r s | s <- suits, r <- ranks]
+        allRanks :: [Rank] -> Suit -> Hand
+        allRanks []  _       = Empty
+        allRanks (r:rs) suit = Add (Card r suit) (allRanks rs suit)
 
-    -- | Convert list to Hand
-    createHand :: [Card] -> Hand -> Hand
-    createHand [] h     = h
-    createHand (x:xs) h = Add x (createHand xs h)
 
--- =================== B3 ===================
--- | Draw a Card from a Hand and add to another 
--- | The first Hand is the deck, second is the player drawing
+-- | Assignment B3:
+
+-- Adds a card from a deck to a hand
 draw :: Hand -> Hand -> (Hand,Hand)
-draw Empty hand = error "draw: The deck is empty."
-draw (Add c deck) hand = (deck, Add c hand) 
+draw Empty _ = error "draw: The deck is empty."
+draw (Add c deck) hand = (deck, (Add c hand))
 
--- =================== B4 ===================
--- | Plays a round for the bank using a provided hand
--- | and the fullDeck command
+
+-- | Assignment B4:
+
+-- Generates a hand for the Bank.
 playBank :: Hand -> Hand
-playBank h = snd $ playBankHelper h Empty
-  where
-    -- | Enforces the logic provided in the assignment (computer
-    -- | draws until Hand has value 16 or higher)
-    playBankHelper :: Hand -> Hand -> (Hand,Hand)
-    playBankHelper deck hand 
-      | value hand < 16 = playBankHelper smallerDeck biggerHand
-      | otherwise       = (deck,hand)
-      where (smallerDeck,biggerHand) = draw deck hand
+playBank deck = snd $ playBankHelper deck Empty
+ where
+ playBankHelper :: Hand -> Hand -> (Hand, Hand)
+ playBankHelper deck hand | value hand >= 16 = (deck, hand)
+                          | otherwise  = playBankHelper smallerDeck biggerHand
+  where (smallerDeck,biggerHand) = draw deck hand
 
--- =================== B5 ===================
 
--- Note to reviewer: We have had a hard time combining the
--- removeNth and getNth functions into one. Ideally we would 
--- be able to both retrieve and remove the card in one function
--- call (removeAndGet :: Hand -> Integer -> (Card, Hand) ). 
--- If you have some technique for accomplishing this it
--- would be much appreciated if you could show it in your 
--- comments.
+-- | Assignment B5:
 
--- | Remove the n:th Card from a Hand
-removeNth :: Hand -> Integer -> Hand
-removeNth (Add c h) n 
-  | h == Empty  = Empty
-  | n == 0      = h
-  | otherwise   = Add c (removeNth h (n-1))
-
--- | Get the n:th Card from a Hand
-getNth :: Hand -> Integer -> Card
-getNth (Add c h) n 
-  | n == 0      = c
-  | otherwise   = getNth h (n-1)
-
--- | Shuffle a Hand
+-- Shuffles the deck
 shuffleDeck :: StdGen -> Hand -> Hand
-shuffleDeck stg h = shuffleHelper stg h Empty
-  where
-    shuffleHelper :: StdGen -> Hand -> Hand -> Hand
-    shuffleHelper stg h acc 
-      | h == Empty  = acc
-      | otherwise   = shuffleHelper newStg smallerDeck acc'
-      where
-        (index,newStg) = randomR (0,size h-1) stg
-        smallerDeck = removeNth h index
-        acc' = Add (getNth h index) acc
+shuffleDeck g Empty = Empty
+shuffleDeck g d     = Add card (shuffleDeck gen deck)
+ where (card, deck) = removeCard d index
+       (index,gen)  = randomR (0, (size d)-1) g
 
--- | Tests that a Card in the original Hand remains in the
--- | shuffled Hand
+-- Removed a card from a given index.
+removeCard :: Hand -> Int -> (Card,Hand)
+removeCard (Add card deck) 0     = (card,deck)
+removeCard (Add card deck) index = ((fst removed), (Add card (snd removed)))
+ where removed = removeCard deck (index-1)
+
+-- | Assignment B6:
+
+implementation = Interface
+ { iFullDeck = fullDeck
+ , iValue = value
+ , iDisplay = display
+ , iGameOver = gameOver
+ , iWinner = winner
+ , iDraw = draw
+ , iPlayBank = playBank
+ , iShuffle = shuffleDeck
+ }
+
+-- Starts the program.
+main :: IO ()
+main = runGame implementation
+
+
+-- | Properties for testing.
+
+-- These two belongs to assignment B1
+prop_onTopOf_assoc :: Hand -> Hand -> Hand -> Bool
+prop_onTopOf_assoc p1 p2 p3 =
+ p1<+(p2<+p3) == (p1<+p2)<+p3
+
+prop_size_onTopOf :: Hand -> Hand -> Bool
+prop_size_onTopOf p1 p2 = 
+ (size p1 + size p2) == size (p1 <+ p2)
+
+-- These two belongs to assignment B5
+prop_size_shuffle :: StdGen -> Hand -> Bool
+prop_size_shuffle g h = 
+        size h == (size $ shuffleDeck g h)
+
 prop_shuffle_sameCards :: StdGen -> Card -> Hand -> Bool
 prop_shuffle_sameCards g c h =
-    c `belongsTo` h == c `belongsTo` shuffleDeck g h
+ c `belongsTo` h == c `belongsTo` shuffleDeck g h
 
--- | Helper function 
+-- Helper function for prop_shuffle_sameCards
 belongsTo :: Card -> Hand -> Bool
 c `belongsTo` Empty = False
 c `belongsTo` (Add c' h) = c == c' || c `belongsTo` h
-
--- | 
-prop_size_shuffle :: StdGen -> Hand -> Bool
-prop_size_shuffle stg h = size h == size (shuffleDeck stg h)
-
-
--- =================== B6 ===================
-implementation = Interface
-  { iFullDeck = fullDeck
-  , iValue    = value
-  , iDisplay  = display
-  , iGameOver = gameOver
-  , iWinner   = winner 
-  , iDraw     = draw
-  , iPlayBank = playBank
-  , iShuffle  = shuffleDeck
-  }
-
-main :: IO ()
-main = runGame implementation
