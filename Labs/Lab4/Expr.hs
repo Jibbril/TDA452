@@ -57,8 +57,8 @@ size (BinExpr _ e1 e2)  = 1 + size e1 + size e2
 -- | ----------------- Part 1B ----------------- |
 -- | ------------------------------------------- |
 showFunc :: Func -> String
-showFunc Sin = "sin"
-showFunc Cos = "cos"
+showFunc Sin = "sin "
+showFunc Cos = "cos "
 
 -- | Takes an expression and returns a string representation of it.
 showExpr :: Expr -> String
@@ -90,7 +90,7 @@ eval e x = eval' e
     eval' (FunExpr Sin e)     = Prelude.sin (eval' e) 
     eval' (FunExpr Cos e)     = Prelude.cos (eval' e)
 
-{-
+
 -- | ------------------------------------------- |
 -- | ----------------- Part 1D ----------------- |
 -- | ------------------------------------------- |
@@ -108,48 +108,29 @@ expr, term, factor :: Parser Expr
 expr = do 
   t <- term
   ts <- zeroOrMore (do char '+'; term)
-  return $ foldl Add t ts
+  return $ foldl (BinExpr Add) t ts
 
 term = do
   t <- factor
   ts <- zeroOrMore (do char '*'; factor)
-  return $ foldl Mul t ts
+  return $ foldl (BinExpr Mul) t ts
 
-factor = Num <$> number 
+factor = Num <$> readsP
   <|> do 
     char '(' 
     e <- expr  
     char ')'
     return e
-  <|> do 
-    char 's' *> char 'i' *> char 'n'  
-    char '('
-    e <- expr
-    char ')' 
-    return $ Sin e
   <|> do
-    char 's' *> char 'i' *> char 'n' *> (Sin <$> factor) 
-  <|> do 
-    char 'c' *> char 'o' *> char 's'  
-    char '('
-    e <- expr
-    char ')'
-    return $ Cos e
+    char 's' *> char 'i' *> char 'n' *> ((FunExpr Sin) <$> factor) 
   <|> do
-    char 'c' *> char 'o' *> char 's' *> (Cos <$> expr)
+    char 'c' *> char 'o' *> char 's' *> ((FunExpr Cos) <$> expr)
   <|> do
     char 'x'
     return X
 
--- | Parser for numbers in Strings
-number :: Parser Double
-number = read <$> oneOrMore digitDotOrMinus
 
--- | Parser for digits dots or minus signs
-digitDotOrMinus :: Parser Char
-digitDotOrMinus = sat isDigit <|> char '.' <|> char '-'
-
-
+{-
 -- | Rewrites an expression to the associative form with all parenthesis to the right.
 assoc :: Expr -> Expr
 assoc (Add (Add e1 e2) e3)  = assoc (Add (assoc e1) (Add (assoc e2) (assoc e3)))  -- (1+2)+3 == 1+(2+3) 
@@ -169,6 +150,7 @@ assocs :: Expr -> Expr -> Expr
 assocs e e'
   | e' == e   = e
   | otherwise = assocs e' (assoc e')
+
 
 -- | ------------------------------------------- |
 -- | ----------------- Part 1E ----------------- |
@@ -300,4 +282,5 @@ differentiate' X           = Num 1
 -- differentiate' (Sin e)     = Mul (differentiate' e) (Cos e)
 -- differentiate' (Cos e)     = Mul (differentiate' e) (Mul (Num (-1)) (Sin e))
 differentiate' _           = Num 0 
+
 -}

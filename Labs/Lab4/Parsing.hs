@@ -90,7 +90,7 @@ parse (P f ) s = f s
 
 readsP :: Read a => Parser a
 readsP = P $ listToMaybe . reads 
-               
+
 ------------------- 
 -- | Parser than can never succeed
 failure :: Parser a -- always fails
