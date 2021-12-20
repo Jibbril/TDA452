@@ -229,7 +229,7 @@ simplify' (BinExpr Add (BinExpr Add X (Num n)) X)         = BinExpr Add (Num n) 
 
 simplify' (BinExpr Add e1 e2)                             = BinExpr Add (simplify' e1) (simplify' e2)
 
-{-
+
 -- | Checks that the value of the expression and the simplified expression are equal.
 prop_SameValue :: Expr -> Double -> Bool 
 prop_SameValue e d = eval e d == eval (simplify e) d
@@ -278,4 +278,3 @@ differentiate' X           = Num 1
 -- differentiate' (Cos e)     = Mul (differentiate' e) (Mul (Num (-1)) (Sin e))
 differentiate' _           = Num 0 
 
--}
