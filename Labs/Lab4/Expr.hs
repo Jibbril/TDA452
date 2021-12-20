@@ -125,9 +125,9 @@ factor = Num <$> readsP
     char ')'
     return e
   <|> do
-    char 's' *> char 'i' *> char 'n' *> ((FunExpr Sin) <$> factor) 
+    char 's' *> char 'i' *> char 'n' *> (FunExpr Sin <$> factor) 
   <|> do
-    char 'c' *> char 'o' *> char 's' *> ((FunExpr Cos) <$> factor)
+    char 'c' *> char 'o' *> char 's' *> (FunExpr Cos <$> factor)
   <|> do
     char 'x'
     return X
@@ -215,13 +215,12 @@ simplify' (BinExpr Mul e1 e2)             = BinExpr Mul (simplify' e1) (simplify
 
 simplify' (BinExpr Add (Num 0) e)         = simplify' e
 simplify' (BinExpr Add e (Num 0))         = simplify' e
-
 simplify' (BinExpr Add (Num n1) (Num n2)) = Num (n1+n2)
 
 -- | Additional simplifications that make some expressions nicer
 -- | and allows further simplification
-simplify' (BinExpr Add (BinExpr Add X (Num n1)) (Num n2)) = BinExpr Add X (Num (n1+n2))  -- (X + n1) + n2 = X + (n1 + n2)
-simplify' (BinExpr Add (BinExpr Add (Num n1) X) (Num n2)) = BinExpr Add X (Num (n1+n2))  -- (n1 + X) + n2 = X + (n1 + n2)
+simplify' (BinExpr Add (BinExpr Add X (Num n1)) (Num n2)) = BinExpr Add X (Num (n1+n2))           -- (X + n1) + n2 = X + (n1 + n2)
+simplify' (BinExpr Add (BinExpr Add (Num n1) X) (Num n2)) = BinExpr Add X (Num (n1+n2))           -- (n1 + X) + n2 = X + (n1 + n2)
 simplify' (BinExpr Add X (BinExpr Add (Num n) X))         = BinExpr Add (Num n) (BinExpr Add X X) -- X + (n + X) = n + (X + X)
 simplify' (BinExpr Add X (BinExpr Add X (Num n)))         = BinExpr Add (Num n) (BinExpr Add X X) -- X + (X + n) = n + (X + X)
 simplify' (BinExpr Add (BinExpr Add (Num n) X) X)         = BinExpr Add (Num n) (BinExpr Add X X) -- (n + X) + X = n + (X + X)
@@ -232,7 +231,7 @@ simplify' (BinExpr Add e1 e2)                             = BinExpr Add (simplif
 
 -- | Checks that the value of the expression and the simplified expression are equal.
 prop_SameValue :: Expr -> Double -> Bool 
-prop_SameValue e d = eval e d == eval (simplify e) d
+prop_SameValue e d = eval e d - eval (simplify e) d <= 0.00001
 
 -- | Checks that a simplified expression is of the simplest form
 prop_SimplestForm :: Expr -> Bool
@@ -241,24 +240,24 @@ prop_SimplestForm e = formatChecker $ simplify e
 -- | Checks that an expression is of an acceptable minimal form
 
 formatChecker :: Expr -> Bool
-formatChecker X                        = True
-formatChecker (Num n)                  = True
-formatChecker (Sin (Num 0))            = False
-formatChecker (Sin e)                  = formatChecker e
-formatChecker (Cos (Num 0))            = False
-formatChecker (Cos e)                  = formatChecker e
+formatChecker X                                = True
+formatChecker (Num n)                          = True
+formatChecker (FunExpr Sin (Num 0))            = False
+formatChecker (FunExpr Sin e)                  = formatChecker e
+formatChecker (FunExpr Cos (Num 0))            = False
+formatChecker (FunExpr Cos e)                  = formatChecker e
 
-formatChecker (Mul (Num 0) _)          = False
-formatChecker (Mul _ (Num 0))          = False
-formatChecker (Mul (Num 1) e)          = False
-formatChecker (Mul e (Num 1))          = False
-formatChecker (Mul (Num n1) (Num n2))  = False
-formatChecker (Mul e1 e2)              = formatChecker e1 && formatChecker e2
+formatChecker (BinExpr Mul (Num 0) _)          = False
+formatChecker (BinExpr Mul _ (Num 0))          = False
+formatChecker (BinExpr Mul (Num 1) e)          = False
+formatChecker (BinExpr Mul e (Num 1))          = False
+formatChecker (BinExpr Mul (Num n1) (Num n2))  = False
+formatChecker (BinExpr Mul e1 e2)              = formatChecker e1 && formatChecker e2
 
-formatChecker (Add (Num 0) e)          = formatChecker e
-formatChecker (Add e (Num 0))          = formatChecker e
-formatChecker (Add (Num n1) (Num n2))  = False
-formatChecker (Add e1 e2)              = formatChecker e1 && formatChecker e2
+formatChecker (BinExpr Add (Num 0) e)          = formatChecker e
+formatChecker (BinExpr Add e (Num 0))          = formatChecker e
+formatChecker (BinExpr Add (Num n1) (Num n2))  = False
+formatChecker (BinExpr Add e1 e2)              = formatChecker e1 && formatChecker e2
 
 
 -- | ------------------------------------------- |
@@ -271,10 +270,10 @@ differentiate = simplify . differentiate'
 
 -- | Differentiate expressions
 differentiate' :: Expr -> Expr
--- differentiate' (Add e1 e2) = Add (differentiate' e1) (differentiate' e2)
--- differentiate' (Mul e1 e2) = Add (Mul (differentiate' e1) e2) (Mul e1 (differentiate' e2))
-differentiate' X           = Num 1
--- differentiate' (Sin e)     = Mul (differentiate' e) (Cos e)
--- differentiate' (Cos e)     = Mul (differentiate' e) (Mul (Num (-1)) (Sin e))
-differentiate' _           = Num 0 
+differentiate' (BinExpr Add e1 e2) = BinExpr Add (differentiate' e1) (differentiate' e2)
+differentiate' (BinExpr Mul e1 e2) = BinExpr Add (BinExpr Mul (differentiate' e1) e2) (BinExpr Mul e1 (differentiate' e2))
+differentiate' X                   = Num 1
+differentiate' (FunExpr Sin e)     = BinExpr Mul (differentiate' e) (FunExpr Cos e)
+differentiate' (FunExpr Cos e)     = BinExpr Mul (differentiate' e) (BinExpr Mul (Num (-1)) (FunExpr Sin e))
+differentiate' _                   = Num 0 
 
