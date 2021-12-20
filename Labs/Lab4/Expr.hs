@@ -188,7 +188,7 @@ instance Arbitrary Expr where
 -- | ------------------------------------------- |
 -- | ----------------- Part 1F ----------------- |
 -- | ------------------------------------------- |
-{-
+
 -- | Simplifies an expression down to its smallest form.
 simplify :: Expr -> Expr
 simplify e
@@ -199,36 +199,37 @@ simplify e
 
 -- | Simplifies an expression one step.
 simplify' :: Expr -> Expr
-simplify' X                        = X
-simplify' (Num n)                  = Num n
-simplify' (Sin (Num 0))            = Num 0
-simplify' (Sin e)                  = Sin (simplify' e)
-simplify' (Cos (Num 0))            = Num 1
-simplify' (Cos e)                  = Cos (simplify' e)
+simplify' X                               = X
+simplify' (Num n)                         = Num n
+simplify' (FunExpr Sin (Num n))           = Num $ Prelude.sin n
+simplify' (FunExpr Sin e)                 = FunExpr Sin (simplify' e)
+simplify' (FunExpr Cos (Num n))           = Num $ Prelude.cos n
+simplify' (FunExpr Cos e)                 = FunExpr Cos (simplify' e)
 
-simplify' (Mul (Num 0) _)          = Num 0
-simplify' (Mul _ (Num 0))          = Num 0
-simplify' (Mul (Num 1) e)          = simplify' e
-simplify' (Mul e (Num 1))          = simplify' e
-simplify' (Mul (Num n1) (Num n2))  = Num (n1*n2)
-simplify' (Mul e1 e2)              = Mul (simplify' e1) (simplify' e2)
+simplify' (BinExpr Mul (Num 0) _)         = Num 0
+simplify' (BinExpr Mul _ (Num 0))         = Num 0
+simplify' (BinExpr Mul (Num 1) e)         = simplify' e
+simplify' (BinExpr Mul e (Num 1))         = simplify' e
+simplify' (BinExpr Mul (Num n1) (Num n2)) = Num (n1*n2)
+simplify' (BinExpr Mul e1 e2)             = BinExpr Mul (simplify' e1) (simplify' e2)
 
-simplify' (Add (Num 0) e)                 = simplify' e
-simplify' (Add e (Num 0))                 = simplify' e
+simplify' (BinExpr Add (Num 0) e)         = simplify' e
+simplify' (BinExpr Add e (Num 0))         = simplify' e
 
-simplify' (Add (Num n1) (Num n2))         = Num (n1+n2)
-simplify' (Add e1 e2)                     = Add (simplify' e1) (simplify' e2)
+simplify' (BinExpr Add (Num n1) (Num n2)) = Num (n1+n2)
 
 -- | Additional simplifications that make some expressions nicer
 -- | and allows further simplification
-simplify' (Add (Add X (Num n1)) (Num n2)) = Add X (Num (n1+n2))  -- (X + n1) + n2 = X + (n1 + n2)
-simplify' (Add (Add (Num n1) X) (Num n2)) = Add X (Num (n1+n2))  -- (n1 + X) + n2 = X + (n1 + n2)
-simplify' (Add X (Add (Num n) X))         = Add (Num n) (Add X X) -- X + (n + X) = n + (X + X)
-simplify' (Add X (Add X (Num n)))         = Add (Num n) (Add X X) -- X + (X + n) = n + (X + X)
-simplify' (Add (Add (Num n) X) X)         = Add (Num n) (Add X X) -- (n + X) + X = n + (X + X)
-simplify' (Add (Add X (Num n)) X)         = Add (Num n) (Add X X) -- (X + n) + X = n + (X + X)
+simplify' (BinExpr Add (BinExpr Add X (Num n1)) (Num n2)) = BinExpr Add X (Num (n1+n2))  -- (X + n1) + n2 = X + (n1 + n2)
+simplify' (BinExpr Add (BinExpr Add (Num n1) X) (Num n2)) = BinExpr Add X (Num (n1+n2))  -- (n1 + X) + n2 = X + (n1 + n2)
+simplify' (BinExpr Add X (BinExpr Add (Num n) X))         = BinExpr Add (Num n) (BinExpr Add X X) -- X + (n + X) = n + (X + X)
+simplify' (BinExpr Add X (BinExpr Add X (Num n)))         = BinExpr Add (Num n) (BinExpr Add X X) -- X + (X + n) = n + (X + X)
+simplify' (BinExpr Add (BinExpr Add (Num n) X) X)         = BinExpr Add (Num n) (BinExpr Add X X) -- (n + X) + X = n + (X + X)
+simplify' (BinExpr Add (BinExpr Add X (Num n)) X)         = BinExpr Add (Num n) (BinExpr Add X X) -- (X + n) + X = n + (X + X)
 
+simplify' (BinExpr Add e1 e2)                             = BinExpr Add (simplify' e1) (simplify' e2)
 
+{-
 -- | Checks that the value of the expression and the simplified expression are equal.
 prop_SameValue :: Expr -> Double -> Bool 
 prop_SameValue e d = eval e d == eval (simplify e) d
@@ -238,6 +239,7 @@ prop_SimplestForm :: Expr -> Bool
 prop_SimplestForm e = formatChecker $ simplify e
 
 -- | Checks that an expression is of an acceptable minimal form
+
 formatChecker :: Expr -> Bool
 formatChecker X                        = True
 formatChecker (Num n)                  = True
