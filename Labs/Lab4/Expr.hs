@@ -7,72 +7,74 @@ import Data.Char
 
 data Expr = 
     Num Double
-  | Cos Expr 
-  | Sin Expr
-  | Add Expr Expr
-  | Mul Expr Expr
+  | FunExpr Func Expr
+  | BinExpr Op Expr Expr
   | X
   deriving (Eq,Show)
 
--- | Example expressions used while testing
-x,x2,x3,x4 :: Expr
-x  = Cos (Add (Mul (Num 3) (Num 2)) X)
-x2 = Cos (Mul (Add (Num 3) (Num 2)) X)
-x3 = Sin (Add (Sin (Num 4.0)) (Mul (Add (Num 3.0) (Num 0.0)) (Num 2.0)))
-x4 = Mul (Add (Add (Mul (Add (Num 0.0) (Num 1.0)) X) (Sin (Cos (Num (-1.0))))) X) (Sin (Cos (Mul (Add (Num 0.0) (Num 0.0)) (Cos (Num 4.0)))))
+data Op = Add | Mul
+  deriving (Eq,Show)
+
+data Func = Sin | Cos
+  deriving (Eq,Show)
 
 -- | ------------------------------------------- |
 -- | ----------------- Part 1A ----------------- |
 -- | ------------------------------------------- |
 
+-- | Constructor for a variable
+x :: Expr
+x  = X
+
 -- | Converts a Double to an Expr
 num :: Double -> Expr
 num = Num
 
--- | Adds two Expr
+-- | Adds two :
 add :: Expr -> Expr -> Expr
-add = Add
+add = BinExpr Add
 
 -- | Multiplies two Expr
 mul :: Expr -> Expr -> Expr
-mul = Mul
+mul = BinExpr Mul
 
 -- | Applies the sin function to an Expr
 sin :: Expr -> Expr
-sin = Sin
+sin = FunExpr Sin
 
 -- | Applies the cos function to an Expr
 cos :: Expr -> Expr
-cos = Cos
+cos = FunExpr Cos
 
 -- | Calculate the number of operators and functions in an Expr
 size :: Expr -> Int
-size X            = 0
-size (Num _)      = 0
-size (Cos e)      = 1 + size e
-size (Sin e)      = 1 + size e
-size (Add e1 e2)  = 1 + size e1 + size e2
-size (Mul e1 e2)  = 1 + size e1 + size e2
+size X                  = 0
+size (Num _)            = 0
+size (FunExpr _ e)     = 1 + size e
+size (BinExpr _ e1 e2)  = 1 + size e1 + size e2
 
 -- | ------------------------------------------- |
 -- | ----------------- Part 1B ----------------- |
 -- | ------------------------------------------- |
+showFunc :: Func -> String
+showFunc Sin = "sin"
+showFunc Cos = "cos"
 
 -- | Takes an expression and returns a string representation of it.
 showExpr :: Expr -> String
-showExpr X             = "x"
-showExpr (Num n)       = show n
-showExpr (Sin e)       = "sin(" ++ showExpr e ++ ")"
-showExpr (Cos e)       = "cos(" ++ showExpr e ++ ")"
-showExpr (Add e1 e2)   = showExpr e1 ++ "+" ++ showExpr e2
-showExpr (Mul e1 e2)   = showFactor e1 ++ "*" ++ showFactor e2
+showExpr X                  = "x"
+showExpr (Num n)            = show n
+showExpr (FunExpr f e)      = showFunc f ++ showExpr e 
+showExpr (BinExpr Add e1 e2) = showExpr e1 ++ "+" ++ showExpr e2
+showExpr (BinExpr Mul e1 e2) = showFactor e1 ++ "*" ++ showFactor e2
+
 
 -- | Enable displaying of brackets for proper precendence of operations
 showFactor :: Expr -> String
-showFactor (Add e1 e2) = "(" ++ showExpr (Add e1 e2) ++ ")" 
+showFactor (BinExpr Add e1 e2) = "(" ++ showExpr (BinExpr Add e1 e2) ++ ")" 
 showFactor e           = showExpr e
 
-
+{-
 -- | ------------------------------------------- |
 -- | ----------------- Part 1C ----------------- |
 -- | ------------------------------------------- |
@@ -292,9 +294,10 @@ differentiate = simplify . differentiate'
 
 -- | Differentiate expressions
 differentiate' :: Expr -> Expr
-differentiate' (Add e1 e2) = Add (differentiate' e1) (differentiate' e2)
-differentiate' (Mul e1 e2) = Add (Mul (differentiate' e1) e2) (Mul e1 (differentiate' e2))
+-- differentiate' (Add e1 e2) = Add (differentiate' e1) (differentiate' e2)
+-- differentiate' (Mul e1 e2) = Add (Mul (differentiate' e1) e2) (Mul e1 (differentiate' e2))
 differentiate' X           = Num 1
-differentiate' (Sin e)     = Mul (differentiate' e) (Cos e)
-differentiate' (Cos e)     = Mul (differentiate' e) (Mul (Num (-1)) (Sin e))
+-- differentiate' (Sin e)     = Mul (differentiate' e) (Cos e)
+-- differentiate' (Cos e)     = Mul (differentiate' e) (Mul (Num (-1)) (Sin e))
 differentiate' _           = Num 0 
+-}
