@@ -57,23 +57,26 @@ size (BinExpr _ e1 e2)  = 1 + size e1 + size e2
 -- | ----------------- Part 1B ----------------- |
 -- | ------------------------------------------- |
 showFunc :: Func -> String
-showFunc Sin = "sin "
-showFunc Cos = "cos "
+showFunc Sin = "sin"
+showFunc Cos = "cos"
 
 -- | Takes an expression and returns a string representation of it.
 showExpr :: Expr -> String
-showExpr X                  = "x"
-showExpr (Num n)            = show n
-showExpr (FunExpr f e)      = showFunc f ++ showExpr e 
-showExpr (BinExpr Add e1 e2) = showExpr e1 ++ "+" ++ showExpr e2
-showExpr (BinExpr Mul e1 e2) = showFactor e1 ++ "*" ++ showFactor e2
+showExpr X                                = "x"
+showExpr (Num n)                          = show n
+showExpr (FunExpr f e)                    = showFunc f ++ showTrig e 
+showExpr (BinExpr Add e1 e2)              = showExpr e1 ++ "+" ++ showExpr e2
+showExpr (BinExpr Mul e1 e2)              = showFactor e1 ++ "*" ++ showFactor e2
 
 
 -- | Enable displaying of brackets for proper precendence of operations
 showFactor :: Expr -> String
-showFactor (BinExpr Add e1 e2) = "(" ++ showExpr (BinExpr Add e1 e2) ++ ")" 
-showFactor e           = showExpr e
+showFactor (BinExpr Add e1 e2)  = "(" ++ showExpr (BinExpr Add e1 e2) ++ ")" 
+showFactor e                    = showExpr e
 
+showTrig :: Expr -> String
+showTrig (BinExpr op e1 e2) = "(" ++ showExpr (BinExpr op e1 e2) ++ ")" 
+showTrig e                  = showExpr e
 
 -- | ------------------------------------------- |
 -- | ----------------- Part 1C ----------------- |
@@ -124,32 +127,21 @@ factor = Num <$> readsP
   <|> do
     char 's' *> char 'i' *> char 'n' *> ((FunExpr Sin) <$> factor) 
   <|> do
-    char 'c' *> char 'o' *> char 's' *> ((FunExpr Cos) <$> expr)
+    char 'c' *> char 'o' *> char 's' *> ((FunExpr Cos) <$> factor)
   <|> do
     char 'x'
     return X
 
 
-{-
+
 -- | Rewrites an expression to the associative form with all parenthesis to the right.
 assoc :: Expr -> Expr
-assoc (Add (Add e1 e2) e3)  = assoc (Add (assoc e1) (Add (assoc e2) (assoc e3)))  -- (1+2)+3 == 1+(2+3) 
-assoc (Mul (Mul e1 e2) e3)  = Mul (assoc e1) (Mul (assoc e2) (assoc e3))
-assoc (Add e1          e2)  = Add (assoc e1) (assoc e2)
-assoc (Mul e1          e2)  = Mul (assoc e1) (assoc e2)
-assoc (Num n)               = Num n
-assoc (Sin e)               = Sin (assoc e)
-assoc (Cos e)               = Cos (assoc e)
-assoc X                     = X
-
--- | Runs assoc until further iterations no longer changes the input
--- | Note: Needed because there can exist expressions where one pass
--- | of assoc is not enough. See example below.
--- ((a + (b + c)) + (d + e)) --assoc--> (a + ((b + c) + (d + e))) --assoc--> (a + (b + (c + (d + e)))) --assoc--> (a + (b + (c + (d + e))))
-assocs :: Expr -> Expr -> Expr
-assocs e e'
-  | e' == e   = e
-  | otherwise = assocs e' (assoc e')
+assoc X                                    = X
+assoc (Num n)                              = Num n
+assoc (FunExpr f e)                        = FunExpr f (assoc e)
+assoc (BinExpr Add (BinExpr Add e1 e2) e3) = assoc (BinExpr Add (assoc e1) (BinExpr Add (assoc e2) (assoc e3)))  -- (1+2)+3 == 1+(2+3) 
+assoc (BinExpr Mul (BinExpr Mul e1 e2) e3) = assoc (BinExpr Mul (assoc e1) (BinExpr Mul (assoc e2) (assoc e3)))
+assoc (BinExpr op e1 e2)                   = BinExpr op (assoc e1) (assoc e2)
 
 
 -- | ------------------------------------------- |
@@ -160,7 +152,7 @@ assocs e e'
 prop_ShowReadExpr :: Expr -> Bool
 prop_ShowReadExpr e = case readExpr $ showExpr e of
       Nothing -> False
-      e'      -> assocs (fromJust e') (assoc $ fromJust e') == assocs e (assoc e)
+      e'      -> assoc (fromJust e') == assoc e 
 
 -- | Generator for arbitrary Expr
 arbExpr :: Int -> Gen Expr
@@ -179,23 +171,24 @@ arbExpr s = frequency [(1,rNum), (s,rBin s), (s,rTrig s), (s, rX)]
       let s' = s `div` 2
       op <- elements [Sin, Cos]
       e <- arbExpr s'
-      return $ op e
+      return $ FunExpr op e
 
     rBin s = do
       let s' = s `div` 2
       op <- elements [Mul,Add]
       e1 <- arbExpr s'
       e2 <- arbExpr s'
-      return $ op e1 e2
+      return $ BinExpr op e1 e2
 
 -- Enable in QuickCheck
 instance Arbitrary Expr where
   arbitrary = sized arbExpr
 
+
 -- | ------------------------------------------- |
 -- | ----------------- Part 1F ----------------- |
 -- | ------------------------------------------- |
-
+{-
 -- | Simplifies an expression down to its smallest form.
 simplify :: Expr -> Expr
 simplify e
