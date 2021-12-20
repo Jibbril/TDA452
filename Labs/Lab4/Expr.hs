@@ -74,7 +74,7 @@ showFactor :: Expr -> String
 showFactor (BinExpr Add e1 e2) = "(" ++ showExpr (BinExpr Add e1 e2) ++ ")" 
 showFactor e           = showExpr e
 
-{-
+
 -- | ------------------------------------------- |
 -- | ----------------- Part 1C ----------------- |
 -- | ------------------------------------------- |
@@ -83,14 +83,14 @@ showFactor e           = showExpr e
 eval :: Expr -> Double -> Double
 eval e x = eval' e
   where
-    eval' X         = x 
-    eval' (Num n)     = n
-    eval' (Add e1 e2) = eval' e1 + eval' e2
-    eval' (Mul e1 e2) = eval' e1 * eval' e2
-    eval' (Sin e) = Prelude.sin (eval' e) 
-    eval' (Cos e) = Prelude.cos (eval' e)
+    eval' X                   = x 
+    eval' (Num n)             = n
+    eval' (BinExpr Add e1 e2) = eval' e1 + eval' e2
+    eval' (BinExpr Mul e1 e2) = eval' e1 * eval' e2
+    eval' (FunExpr Sin e)     = Prelude.sin (eval' e) 
+    eval' (FunExpr Cos e)     = Prelude.cos (eval' e)
 
-
+{-
 -- | ------------------------------------------- |
 -- | ----------------- Part 1D ----------------- |
 -- | ------------------------------------------- |
